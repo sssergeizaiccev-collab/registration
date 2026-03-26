@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { UseStore } from "./components/UseStore";
+import { useRef, useEffect } from "react";
+import { useStore } from "./components/useStore";
 import "./App.css";
 
 const sendFormData = (formData) => {
@@ -7,111 +7,55 @@ const sendFormData = (formData) => {
 };
 
 function App() {
-  const { getState, updateState } = UseStore();
-  const [loginError, setLoginError] = useState(null);
-  const [passwordError, setPasswordError] = useState(null);
-  const [repeatPasswordError, setRepeatPasswordError] = useState(null);
+  const {
+    state,
+    updateState,
+    validateEmail,
+    validatePassword,
+    validateRepeatPassword,
+  } = useStore();
 
-  const { email, password, repeatPassword } = getState();
+  const { email, password, repeatPassword, errors } = state;
 
   const onsubmit = (event) => {
     event.preventDefault();
-    sendFormData(getState());
+    const { email, password, repeatPassword } = state;
+    sendFormData({ email, password, repeatPassword });
   };
 
   const onChange = ({ target }) => {
     updateState(target.name, target.value);
   };
 
-  const onLoginBlur = ({ target }) => {
-    updateState(target.name, target.value);
-    let error = null;
-
-    if (!/\S+@\S+\.\S+/.test(target.value)) {
-      error = "Не верный логин почты.";
-    } else if (target.value.length > 30) {
-      error = "Не верный логин почты. Максимальная длина логина 30 символов";
-    }
-
-    setLoginError(error);
-    checkFormAndFocus(
-      loginError,
-      passwordError,
-      repeatPasswordError,
-      password,
-      repeatPassword,
-    );
-  };
-
-  const onPasswordBlur = ({ target }) => {
-    updateState(target.name, target.value);
-    let error = null;
-
-    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$^&*?_]).{8,}$/.test(target.value)) {
-      error =
-        "Пароль должен содержать: минимум 8 символов, 1 заглавную букву, 1 цифру и спецсимвол";
-    }
-
-    setPasswordError(error);
-    checkFormAndFocus(
-      loginError,
-      passwordError,
-      repeatPasswordError,
-      password,
-      repeatPassword,
-    );
-  };
-
-  const onRepeatPasswordBlur = ({ target }) => {
-    updateState(target.name, target.value);
-    let error = null;
-
-    if (target.value !== getState().password) {
-      error = "Пароли не совпадают";
-    }
-
-    setRepeatPasswordError(error);
-    checkFormAndFocus(
-      loginError,
-      passwordError,
-      repeatPasswordError,
-      password,
-      repeatPassword,
-    );
-  };
-
   const submitRef = useRef(null);
 
-  const checkFormAndFocus = (
-    loginError,
-    passwordError,
-    repeatPasswordError,
-    password,
-    repeatPassword,
-  ) => {
-    if (
-      password === repeatPassword &&
-      !loginError &&
-      !passwordError &&
-      !repeatPasswordError
-    ) {
+  useEffect(() => {
+    const isFormValid =
+      !errors.loginError &&
+      !errors.passwordError &&
+      !errors.repeatPasswordError &&
+      email &&
+      password &&
+      repeatPassword;
+
+    if (isFormValid) {
       submitRef.current?.focus();
     }
-  };
+  }, [errors, email, password, repeatPassword]);
 
   return (
     <div className="container">
       <form className="containerForm" onSubmit={onsubmit}>
-        {loginError && <div>{loginError}</div>}
-        {passwordError && <div>{passwordError}</div>}
-        {repeatPasswordError && <div>{repeatPasswordError}</div>}
+        {errors.loginError && <div className="error">{errors.loginError}</div>}
+        {errors.passwordError && <div className="error">{errors.passwordError}</div>}
+        {errors.repeatPasswordError && <div className="error">{errors.repeatPasswordError}</div>}
         <input
           type="email"
           name="email"
           placeholder="Почта"
           value={email}
           onChange={onChange}
-          onBlur={onLoginBlur}
+          onBlur={(e) => validateEmail(e.target.value)}
         />
         <input
           type="password"
@@ -119,7 +63,7 @@ function App() {
           placeholder="Пароль"
           value={password}
           onChange={onChange}
-          onBlur={onPasswordBlur}
+          onBlur={(e) => validatePassword(e.target.value)}
         />
         <input
           type="password"
@@ -127,14 +71,14 @@ function App() {
           placeholder="Повторите пароль"
           value={repeatPassword}
           onChange={onChange}
-          onBlur={onRepeatPasswordBlur}
+          onBlur={(e) => validateRepeatPassword(e.target.value)}
         />
         <button
           type="submit"
           disabled={
-            loginError !== null ||
-            passwordError !== null ||
-            repeatPasswordError !== null
+            errors.loginError ||
+            errors.passwordError ||
+            errors.repeatPasswordError
           }
           ref={submitRef}
         >
